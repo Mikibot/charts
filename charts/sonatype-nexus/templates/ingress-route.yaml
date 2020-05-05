@@ -1,0 +1,51 @@
+{{- if .Values.ingressRoute.enabled -}}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ template "nexus.fullname" . }}
+  labels:
+{{ include "nexus.labels" . | indent 4 }}
+    {{- range $key, $value := .Values.ingressRoute.labels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  annotations:
+    {{- range $key, $value := .Values.ingressRoute.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+{{- if .Values.ingressRoute.tls.enabled }}
+  tls:
+  {{- if .Values.ingressRoute.tls.secretName }}
+    secretName: {{ .Values.ingressRoute.tls.secretName | quote }}
+  {{- end }}
+{{- end }}
+  routes:
+{{- if .Values.nexusProxy.env.nexusHttpHost }}
+  - match: {{ printf "Host(`%s`)" .Values.nexusProxy.env.nexusHttpHost }}
+    kind: Rule
+    services:
+  {{- if .Values.nexusProxy.svcName }}
+    - name: {{ .Values.nexusProxy.svcName }}
+  {{- else }}
+    - name: {{ template "nexus.fullname" . }}
+  {{- end }}
+  {{- if .Values.nexusProxy.enabled }}
+      port: {{ .Values.nexusProxy.port }}
+  {{- else }}
+      port: {{ .Values.nexus.nexusPort }}
+  {{- end }}
+{{- end }}
+{{- if .Values.nexusProxy.enabled }}
+{{- if .Values.nexusProxy.env.nexusDockerHost }}
+  - match: {{ printf "Host(`%s`)" .Values.nexusProxy.env.nexusDockerHost }}
+    kind: Rule
+    services:
+    {{- if .Values.nexusProxy.svcName }}
+      - name: {{ .Values.nexusProxy.svcName }}
+    {{- else }}
+      - name: {{ template "nexus.fullname" . }}
+    {{- end }}
+        port: {{ .Values.nexusProxy.port }}
+{{- end }}
+{{- end }}
+{{- end }}
